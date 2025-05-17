@@ -1,7 +1,29 @@
-import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:m3u8_downloader/pages/home.dart';
+import 'package:m3u8_downloader/pages/settings.dart';
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await windowManager.ensureInitialized();
+
+  const fixedSize = Size(1000, 800);
+
+  WindowOptions windowOptions = WindowOptions(
+    size: fixedSize,
+    minimumSize: fixedSize, // Prevent resizing smaller
+    maximumSize: fixedSize, // Prevent resizing larger
+    center: true,
+    // backgroundColor: Colors.transparent,
+    skipTaskbar: false,
+    titleBarStyle: TitleBarStyle.normal,
+  );
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.setMaximizable(false); // Disable maximize button
+    await windowManager.show();
+    await windowManager.focus();
+  });
+
   runApp(const MyApp());
 }
 
@@ -11,20 +33,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // return ShadApp();
-    return ShadApp.custom(
-      themeMode: ThemeMode.dark,
-      darkTheme: ShadThemeData(
-        brightness: Brightness.dark,
-        colorScheme: const ShadSlateColorScheme.dark(),
-      ),
-      appBuilder: (context) {
-        return MaterialApp(
-          theme: ThemeData(),
-          builder: (context, child) {
-            return ShadAppBuilder(child: child ?? const SizedBox.shrink());
-          },
-        debugShowCheckedModeBanner: false,
-        );
+    return MaterialApp(
+      home: const HomePage(),
+      debugShowCheckedModeBanner: false,
+      routes: {
+        '/home': (context) => const HomePage(),
+        '/settings': (context) => const SettingsPage(),
       },
     );
   }
