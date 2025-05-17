@@ -4,7 +4,7 @@ project(m3u8_downloader LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "m3u8_downloader")
+set(BINARY_NAME "M3U8Downloader")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -68,6 +68,12 @@ set(CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD 1)
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)
 endif()
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/runner/ffmpeg/"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}/ffmpeg/"
+    COMPONENT Runtime
+    FILES_MATCHING PATTERN "*.*"
+)
 
 set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
 set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
