@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
-import 'package:file_picker/file_picker.dart'; // Add this import
+import 'package:file_picker/file_picker.dart';
 import '../components/sidebar.dart';
+import '../utils/database_helper.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -16,12 +17,32 @@ class _SettingsPageState extends State<SettingsPage> {
   String _fileExtension = '.mp4';
   int _threadCount = 4;
   final TextEditingController _threadCountController = TextEditingController();
+  final DatabaseHelper _dbHelper = DatabaseHelper();
 
   @override
   void initState() {
     super.initState();
-    _initOutputFolder();
-    _threadCountController.text = _threadCount.toString();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    // Load output folder
+    final downloadsDir = await getDownloadsDirectory();
+    if (downloadsDir != null) {
+      _outputFolder = path.join(downloadsDir.path, 'm3u8-downloader');
+    }
+
+    // Load saved settings from database
+    final fileExt = await _dbHelper.getSetting('file_extension');
+    final threadCount = await _dbHelper.getSetting('thread_count');
+    final outputFolder = await _dbHelper.getSetting('output_folder');
+
+    setState(() {
+      _fileExtension = fileExt ?? '.mp4';
+      _threadCount = int.tryParse(threadCount ?? '4') ?? 4;
+      _outputFolder = outputFolder ?? _outputFolder;
+      _threadCountController.text = _threadCount.toString();
+    });
   }
 
   @override
@@ -154,7 +175,12 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Text('TS', style: TextStyle(color: Colors.white)),
             ),
           ],
-          onChanged: (value) => setState(() => _fileExtension = value!),
+          onChanged: (value) async {
+            if (value != null) {
+              setState(() => _fileExtension = value);
+              await _dbHelper.insertSetting('file_extension', value);
+            }
+          },
         ),
         const SizedBox(height: 16),
       ],
@@ -220,9 +246,10 @@ class _SettingsPageState extends State<SettingsPage> {
           style: TextStyle(color: Colors.white),
           keyboardType: TextInputType.number,
           controller: _threadCountController, // <-- use controller
-          onChanged: (value) {
+          onChanged: (value) async {
             final count = int.tryParse(value) ?? 4;
             setState(() => _threadCount = count.clamp(1, 8));
+            await _dbHelper.insertSetting('thread_count', _threadCount.toString());
           },
         ),
       ],
@@ -235,20 +262,24 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() {
         _outputFolder = selectedDirectory;
       });
+      await _dbHelper.insertSetting('output_folder', selectedDirectory);
     }
   }
 
-  void _resetBasicSettings() {
-    _initOutputFolder();
+  void _resetBasicSettings() async {
+    await _initOutputFolder();
     setState(() {
       _fileExtension = '.mp4';
     });
+    await _dbHelper.insertSetting('file_extension', '.mp4');
+    await _dbHelper.insertSetting('output_folder', _outputFolder);
   }
 
-  void _resetAdvancedSettings() {
+  void _resetAdvancedSettings() async {
     setState(() {
       _threadCount = 4;
-      _threadCountController.text = '4'; // <-- update controller
+      _threadCountController.text = '4';
     });
+    await _dbHelper.insertSetting('thread_count', '4');
   }
 }

@@ -40,7 +40,9 @@ class Sidebar extends StatelessWidget {
           ),
           const Spacer(),
           InkWell(
-            onTap: () {},
+            onTap: () {
+              Navigator.pushReplacementNamed(context, '/downloads');
+            },
             child: Container(
               width: double.infinity,
               margin: const EdgeInsets.only(top: 20),

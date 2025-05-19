@@ -1,5 +1,6 @@
 import 'package:m3u8_downloader/pages/home.dart';
 import 'package:m3u8_downloader/pages/settings.dart';
+import 'package:m3u8_downloader/pages/download.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -39,6 +40,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/home': (context) => const HomePage(),
         '/settings': (context) => const SettingsPage(),
+        '/downloads': (context) => const DownloadPage(),
       },
     );
   }
