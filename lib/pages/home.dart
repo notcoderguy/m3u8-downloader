@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../components/sidebar.dart';
 import '../utils/database_helper.dart';
+import 'package:path/path.dart' as path;
+import '../utils/downloader.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -141,12 +143,26 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _handleAddToQueue() async {
     if (_urlController.text.isNotEmpty && _fileNameController.text.isNotEmpty) {
+      // Fetch settings from the database
+      final String? outputFolder = await _dbHelper.getSetting('output_folder');
+      final String? fileExtension = await _dbHelper.getSetting('file_extension');
+
+      if (outputFolder == null || fileExtension == null) {
+        _showSnackBar('Settings are not properly configured.');
+        return;
+      }
+
+      // Construct the full file path
+      final String filePath = path.join(outputFolder, '${_fileNameController.text}$fileExtension');
+
       await _dbHelper.insertDownload({
         'url': _urlController.text,
-        'file_path': _fileNameController.text,
+        'file_path': filePath,
         'created_at': DateTime.now().toIso8601String(),
         'status': 'queued',
       });
+
+      await Downloader.processQueue(_dbHelper);
 
       if (!mounted) return;
 

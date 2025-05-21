@@ -37,6 +37,13 @@ class _DownloadPageState extends State<DownloadPage> {
     });
   }
 
+  Future<void> _clearAllDownloads() async {
+    await _dbHelper.clearDownloads();
+    setState(() {
+      _downloads.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,16 +56,38 @@ class _DownloadPageState extends State<DownloadPage> {
               child: Column(
                 children: [
                   const SizedBox(height: 32),
-                  Text(
-                    'Downloads',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'MonaSans',
-                      color: Colors.white,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Downloads',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'MonaSans',
+                            color: Colors.white,
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: _clearAllDownloads,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'Clear All',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
                   Expanded(
                     child: _downloads.isEmpty
                         ? const Center(

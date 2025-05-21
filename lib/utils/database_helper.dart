@@ -97,6 +97,24 @@ class DatabaseHelper {
     );
   }
 
+  Future<Map<String, dynamic>?> getFirstQueuedDownload() async {
+    final db = await database;
+    final List<Map<String, dynamic>> result = await db.query(
+      'downloads',
+      where: 'status = ?',
+      whereArgs: ['queued'],
+      orderBy: 'created_at ASC',
+      limit: 1,
+    );
+
+    return result.isNotEmpty ? result.first : null;
+  }
+
+  Future<void> clearDownloads() async {
+    final db = await database;
+    await db.delete('downloads');
+  }
+
   // Settings methods
   Future<int> insertSetting(String key, String value) async {
     final db = await database;
