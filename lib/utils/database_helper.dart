@@ -20,10 +20,8 @@ class DatabaseHelper {
     try {
       final path = await getDatabasesPath();
       final databasePath = join(path, 'downloads.db');
-      print('Database Path: $databasePath'); // Debug print
       return await openDatabase(databasePath, version: 1, onCreate: _onCreate);
     } catch (e) {
-      print('Error initializing database: $e'); // Debug print
       rethrow;
     }
   }
