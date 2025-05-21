@@ -28,8 +28,9 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadSettings() async {
     // Load output folder
     final downloadsDir = await getDownloadsDirectory();
+    String defaultOutputFolder = '';
     if (downloadsDir != null) {
-      _outputFolder = path.join(downloadsDir.path, 'm3u8-downloader');
+      defaultOutputFolder = path.join(downloadsDir.path, 'm3u8-downloader');
     }
 
     // Load saved settings from database
@@ -37,12 +38,14 @@ class _SettingsPageState extends State<SettingsPage> {
     final threadCount = await _dbHelper.getSetting('thread_count');
     final outputFolder = await _dbHelper.getSetting('output_folder');
 
-    setState(() {
-      _fileExtension = fileExt ?? '.mp4';
-      _threadCount = int.tryParse(threadCount ?? '4') ?? 4;
-      _outputFolder = outputFolder ?? _outputFolder;
-      _threadCountController.text = _threadCount.toString();
-    });
+    if (mounted) {
+      setState(() {
+        _fileExtension = fileExt ?? '.mp4';
+        _threadCount = int.tryParse(threadCount ?? '4') ?? 4;
+        _outputFolder = outputFolder ?? defaultOutputFolder;
+        _threadCountController.text = _threadCount.toString();
+      });
+    }
   }
 
   @override
@@ -51,17 +54,68 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
-  Future<void> _initOutputFolder() async {
-    final downloadsDir = await getDownloadsDirectory();
-    if (downloadsDir != null) {
-      setState(() {
-        _outputFolder = path.join(downloadsDir.path, 'm3u8-downloader');
-      });
+  Future<void> _saveSettings() async {
+    await _dbHelper.insertSetting('file_extension', _fileExtension);
+    await _dbHelper.insertSetting('thread_count', _threadCount.toString());
+    await _dbHelper.insertSetting('output_folder', _outputFolder);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Settings saved successfully!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
+  Future<void> _initOutputFolder() async {
+    final downloadsDir = await getDownloadsDirectory();
+    if (downloadsDir != null) {
+      final defaultOutputFolder = path.join(downloadsDir.path, 'm3u8-downloader');
+      if (mounted) {
+        setState(() {
+          _outputFolder = defaultOutputFolder;
+        });
+      }
+    }
+  }
+
+  Future<void> _pickOutputFolder() async {
+    String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+    if (selectedDirectory != null) {
+      if (mounted) {
+        setState(() {
+          _outputFolder = selectedDirectory;
+        });
+      }
+      await _dbHelper.insertSetting('output_folder', selectedDirectory);
+    }
+  }
+
+  void _resetBasicSettings() async {
+    await _initOutputFolder();
+    if (mounted) {
+      setState(() {
+        _fileExtension = '.mp4';
+      });
+    }
+    await _dbHelper.insertSetting('file_extension', '.mp4');
+    await _dbHelper.insertSetting('output_folder', _outputFolder);
+  }
+
+  void _resetAdvancedSettings() async {
+    if (mounted) {
+      setState(() {
+        _threadCount = 4;
+        _threadCountController.text = '4';
+      });
+    }
+    await _dbHelper.insertSetting('thread_count', '4');
+  }
+
   @override
-  Widget build(BuildContext context) {
+Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Row(
@@ -71,11 +125,23 @@ class _SettingsPageState extends State<SettingsPage> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start, // Align content to the start
                 children: [
                   _buildBasicSettings(),
                   const SizedBox(height: 32),
                   _buildAdvancedSettings(),
+                  const SizedBox(height: 32),
+                  ElevatedButton( // Move button to the left
+                    onPressed: _saveSettings,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    child: const Text('Save Settings'),
+                  ),
                 ],
               ),
             ),
@@ -84,7 +150,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
-
+  
   Widget _buildBasicSettings() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,8 +167,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
             ElevatedButton(
-              onPressed:
-                  _resetBasicSettings, // <-- Fix: should reset basic settings
+              onPressed: _resetBasicSettings,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
@@ -175,14 +240,12 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Text('TS', style: TextStyle(color: Colors.white)),
             ),
           ],
-          onChanged: (value) async {
+          onChanged: (value) {
             if (value != null) {
               setState(() => _fileExtension = value);
-              await _dbHelper.insertSetting('file_extension', value);
             }
           },
         ),
-        const SizedBox(height: 16),
       ],
     );
   }
@@ -215,19 +278,6 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.grey[900],
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.orange),
-          ),
-          child: Text(
-            'Warning: Only modify these settings if you know what you\'re doing!',
-            style: TextStyle(color: Colors.orange),
-          ),
-        ),
         const SizedBox(height: 16),
         TextFormField(
           decoration: InputDecoration(
@@ -245,41 +295,13 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           style: TextStyle(color: Colors.white),
           keyboardType: TextInputType.number,
-          controller: _threadCountController, // <-- use controller
-          onChanged: (value) async {
+          controller: _threadCountController,
+          onChanged: (value) {
             final count = int.tryParse(value) ?? 4;
             setState(() => _threadCount = count.clamp(1, 8));
-            await _dbHelper.insertSetting('thread_count', _threadCount.toString());
           },
         ),
       ],
     );
-  }
-
-  Future<void> _pickOutputFolder() async {
-    String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-    if (selectedDirectory != null) {
-      setState(() {
-        _outputFolder = selectedDirectory;
-      });
-      await _dbHelper.insertSetting('output_folder', selectedDirectory);
-    }
-  }
-
-  void _resetBasicSettings() async {
-    await _initOutputFolder();
-    setState(() {
-      _fileExtension = '.mp4';
-    });
-    await _dbHelper.insertSetting('file_extension', '.mp4');
-    await _dbHelper.insertSetting('output_folder', _outputFolder);
-  }
-
-  void _resetAdvancedSettings() async {
-    setState(() {
-      _threadCount = 4;
-      _threadCountController.text = '4';
-    });
-    await _dbHelper.insertSetting('thread_count', '4');
   }
 }

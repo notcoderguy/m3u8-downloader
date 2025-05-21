@@ -17,15 +17,15 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
-    final path = await getDatabasesPath();
-    final databasePath = join(path, 'downloads.db');
-    print('Database created at: $databasePath');
-
-    return await openDatabase(
-      databasePath,
-      version: 1,
-      onCreate: _onCreate,
-    );
+    try {
+      final path = await getDatabasesPath();
+      final databasePath = join(path, 'downloads.db');
+      print('Database Path: $databasePath'); // Debug print
+      return await openDatabase(databasePath, version: 1, onCreate: _onCreate);
+    } catch (e) {
+      print('Error initializing database: $e'); // Debug print
+      rethrow;
+    }
   }
 
   Future<String> getDatabasePath() async {
@@ -43,7 +43,7 @@ class DatabaseHelper {
         status TEXT NOT NULL
       )
     ''');
-    
+
     await db.execute('''
       CREATE TABLE settings(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,23 +57,24 @@ class DatabaseHelper {
 
   Future<void> _initializeDefaultSettings(Database db) async {
     final downloadsDir = await getDownloadsDirectory();
-    final defaultOutputFolder = downloadsDir != null 
-      ? join(downloadsDir.path, 'm3u8-downloader')
-      : join(await getDatabasesPath(), 'm3u8-downloader');
-    
+    final defaultOutputFolder =
+        downloadsDir != null
+            ? join(downloadsDir.path, 'm3u8-downloader')
+            : join(await getDatabasesPath(), 'm3u8-downloader');
+
     await db.insert('settings', {
       'key': 'file_extension',
-      'value': '.mp4'
+      'value': '.mp4',
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     await db.insert('settings', {
-      'key': 'thread_count', 
-      'value': '4'
+      'key': 'thread_count',
+      'value': '4',
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     await db.insert('settings', {
       'key': 'output_folder',
-      'value': defaultOutputFolder
+      'value': defaultOutputFolder,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -101,11 +102,10 @@ class DatabaseHelper {
   // Settings methods
   Future<int> insertSetting(String key, String value) async {
     final db = await database;
-    return await db.insert(
-      'settings',
-      {'key': key, 'value': value},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    return await db.insert('settings', {
+      'key': key,
+      'value': value,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<String?> getSetting(String key) async {

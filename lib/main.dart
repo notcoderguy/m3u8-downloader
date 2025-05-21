@@ -2,6 +2,8 @@ import 'package:m3u8_downloader/pages/home.dart';
 import 'package:m3u8_downloader/pages/settings.dart';
 import 'package:m3u8_downloader/pages/download.dart';
 import 'package:flutter/material.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'dart:io';
 import 'package:window_manager/window_manager.dart';
 
 void main() async {
@@ -24,6 +26,12 @@ void main() async {
     await windowManager.show();
     await windowManager.focus();
   });
+
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    // Initialize sqflite for desktop platforms
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
 
   runApp(const MyApp());
 }
