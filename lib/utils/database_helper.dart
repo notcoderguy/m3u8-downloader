@@ -115,6 +115,15 @@ class DatabaseHelper {
     await db.delete('downloads');
   }
 
+  Future<void> deleteDownload(int id) async {
+    final db = await database;
+    await db.delete(
+      'downloads',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   // Settings methods
   Future<int> insertSetting(String key, String value) async {
     final db = await database;

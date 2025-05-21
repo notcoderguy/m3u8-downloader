@@ -13,13 +13,14 @@ class Downloader {
     // Determine the ffmpeg path based on the environment
     final String ffmpegPath = _getFFmpegPath();
 
-    // Construct the ffmpeg command
+    // Construct the optimized ffmpeg command
     final List<String> args = [
       '-i', url, // Input URL
-      '-bsf:a', 'aac_adtstoasc', // Bitstream filter for audio
-      '-vcodec', 'copy', // Copy video codec
-      '-c', 'copy', // Copy both audio and video
-      '-crf', '50', // Constant Rate Factor for quality
+      '-protocol_whitelist', 'file,http,https,tcp,tls', // Allow protocols for m3u8
+      '-c:v', 'copy', // Copy video codec to avoid re-encoding
+      '-c:a', 'aac', // Use AAC audio codec for compatibility
+      '-strict', 'experimental', // Enable experimental features
+      '-movflags', '+faststart', // Optimize for progressive streaming
       outputPath, // Output file path
     ];
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:io';
+import 'package:path/path.dart' as path;
 import '../components/sidebar.dart';
 import 'package:m3u8_downloader/utils/database_helper.dart';
 
@@ -100,23 +102,156 @@ class _DownloadPageState extends State<DownloadPage> {
                             itemCount: _downloads.length,
                             itemBuilder: (context, index) {
                               final download = _downloads[index];
-                              return ListTile(
-                                title: Text(
-                                  download['url'] ?? 'Unknown',
-                                  style: const TextStyle(color: Colors.white),
+                              final isDownloading = download['status'] == 'downloading';
+                              return Card(
+                                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                                color: Colors.grey[900],
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                subtitle: Text(
-                                  'Status: ${download['status']}',
-                                  style: TextStyle(color: Colors.grey[400]),
-                                ),
-                                trailing: SizedBox(
-                                  width: 150,
-                                  child: LinearProgressIndicator(
-                                    value: download['status'] == 'completed' ? 1.0 : 0.5,
-                                    backgroundColor: Colors.grey[800],
-                                    color: download['status'] == 'completed' 
-                                      ? Colors.green 
-                                      : Colors.orange,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        download['url'] ?? 'Unknown',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Status: ${download['status']}',
+                                            style: TextStyle(color: Colors.grey[400]),
+                                          ),
+                                          if (isDownloading)
+                                            ElevatedButton(
+                                              onPressed: () async {
+                                                // Stop download logic
+                                                if (download['status'] == 'downloading') {
+                                                  await _dbHelper.updateDownloadStatus(download['id'], 'stopped');
+                                                  setState(() {
+                                                    download['status'] = 'stopped';
+                                                  });
+                                                }
+                                              },
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.red,
+                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                              ),
+                                              child: const Text(
+                                                'Stop',
+                                                style: TextStyle(color: Colors.white),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      if (download['status'] == 'failed')
+                                        LinearProgressIndicator(
+                                          value: 1.0, // Static progress for failed downloads
+                                          backgroundColor: Colors.grey[800],
+                                          color: Colors.red,
+                                        )
+                                      else if (isDownloading)
+                                        LinearProgressIndicator(
+                                          value: null, // Animated indeterminate progress for downloading
+                                          backgroundColor: Colors.grey[800],
+                                          color: Colors.white,
+                                        )
+                                      else if (download['status'] == 'stopped')
+                                        LinearProgressIndicator(
+                                          value: 0.0, // Static progress for stopped downloads
+                                          backgroundColor: Colors.grey[800],
+                                          color: Colors.grey,
+                                        )
+                                      else
+                                        LinearProgressIndicator(
+                                          value: download['status'] == 'completed' ? 1.0 : null,
+                                          backgroundColor: Colors.grey[800],
+                                          color: Colors.green,
+                                        ),
+                                      const SizedBox(height: 16),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          ElevatedButton(
+                                            onPressed: () async {
+                                              // Open file logic
+                                              final filePath = download['file_path'];
+                                              if (filePath != null) {
+                                                await Process.run('explorer', [filePath]);
+                                              }
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.blue,
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'Open File',
+                                              style: TextStyle(color: Colors.white),
+                                            ),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () async {
+                                              // Open folder logic
+                                              final folderPath = path.dirname(download['file_path']);
+                                              await Process.run('explorer', [folderPath]);
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.blue,
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'Open Folder',
+                                              style: TextStyle(color: Colors.white),
+                                            ),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () async {
+                                              // Delete file logic
+                                              final filePath = download['file_path'];
+                                              if (filePath != null) {
+                                                final file = File(filePath);
+                                                if (await file.exists()) {
+                                                  await file.delete();
+                                                }
+                                                await _dbHelper.deleteDownload(download['id']);
+                                                setState(() {
+                                                  _downloads.removeAt(index);
+                                                });
+                                              }
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'Delete',
+                                              style: TextStyle(color: Colors.white),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
                               );

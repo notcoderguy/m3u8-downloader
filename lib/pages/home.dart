@@ -106,6 +106,7 @@ class _HomePageState extends State<HomePage> {
           fontFamily: 'MonaSans',
         ),
       ),
+      onSubmitted: (_) => _handleAddToQueue(), // Trigger on Enter key press
     );
   }
 
@@ -162,13 +163,13 @@ class _HomePageState extends State<HomePage> {
         'status': 'queued',
       });
 
-      await Downloader.processQueue(_dbHelper);
-
-      if (!mounted) return;
-
+      // Clear controllers and show snack bar immediately
       _urlController.clear();
       _fileNameController.clear();
       _showSnackBar('Download added to queue');
+
+      // Process the queue asynchronously
+      Downloader.processQueue(_dbHelper);
     } else {
       _showSnackBar('Please fill in all fields');
     }
