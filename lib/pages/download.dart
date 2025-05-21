@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import '../components/sidebar.dart';
 import 'package:m3u8_downloader/utils/database_helper.dart';
+import 'package:m3u8_downloader/utils/downloader.dart';
 
 class DownloadPage extends StatefulWidget {
   const DownloadPage({super.key});
@@ -130,29 +131,37 @@ class _DownloadPageState extends State<DownloadPage> {
                                             'Status: ${download['status']}',
                                             style: TextStyle(color: Colors.grey[400]),
                                           ),
-                                          if (isDownloading)
-                                            ElevatedButton(
-                                              onPressed: () async {
-                                                // Stop download logic
-                                                if (download['status'] == 'downloading') {
-                                                  await _dbHelper.updateDownloadStatus(download['id'], 'stopped');
+                                          ElevatedButton(
+                                            onPressed: () async {
+                                              if (download['status'] == 'downloading') {
+                                                await Downloader.stopDownload(download['id'], _dbHelper);
+                                                setState(() {
+                                                  download['status'] = 'stopped';
+                                                });
+                                              } else {
+                                                final id = download['id'];
+                                                final url = download['url'];
+                                                final outputPath = download['file_path'];
+                                                if (id != null && url != null && outputPath != null) {
+                                                  await Downloader.downloadWithFFmpeg(url, outputPath, id, _dbHelper);
                                                   setState(() {
-                                                    download['status'] = 'stopped';
+                                                    download['status'] = 'downloading';
                                                   });
                                                 }
-                                              },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.red,
-                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                              ),
-                                              child: const Text(
-                                                'Stop',
-                                                style: TextStyle(color: Colors.white),
+                                              }
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: isDownloading ? Colors.red : Colors.green,
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
                                               ),
                                             ),
+                                            child: Text(
+                                              isDownloading ? 'Stop' : 'Start',
+                                              style: const TextStyle(color: Colors.white),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                       const SizedBox(height: 8),

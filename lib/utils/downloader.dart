@@ -3,7 +3,9 @@ import 'package:path/path.dart' as path;
 import 'package:m3u8_downloader/utils/database_helper.dart';
 
 class Downloader {
-  static Future<void> downloadWithFFmpeg(String url, String outputPath) async {
+  static final Map<int, Process> _processes = {}; // Map to track ffmpeg processes by download ID
+
+  static Future<void> downloadWithFFmpeg(String url, String outputPath, int id, DatabaseHelper dbHelper) async {
     // Ensure the output directory exists
     final outputDir = Directory(path.dirname(outputPath));
     if (!outputDir.existsSync()) {
@@ -26,6 +28,10 @@ class Downloader {
 
     // Execute the ffmpeg command
     final Process process = await Process.start(ffmpegPath, args);
+    _processes[id] = process; // Track the process
+
+    // Update status to 'downloading'
+    await dbHelper.updateDownloadStatus(id, 'downloading');
 
     // Handle process output and errors
     await Future.wait([
@@ -35,8 +41,13 @@ class Downloader {
 
     // Wait for the process to complete
     final int exitCode = await process.exitCode;
+    _processes.remove(id); // Remove the process from tracking
+
     if (exitCode != 0) {
+      await dbHelper.updateDownloadStatus(id, 'failed');
       throw Exception('FFmpeg failed with exit code $exitCode');
+    } else {
+      await dbHelper.updateDownloadStatus(id, 'completed');
     }
   }
 
@@ -64,7 +75,7 @@ class Downloader {
 
     try {
       // Start the download
-      await downloadWithFFmpeg(url, filePath);
+      await downloadWithFFmpeg(url, filePath, queuedDownload['id'], dbHelper);
 
       // Update status to 'completed'
       await dbHelper.updateDownloadStatus(queuedDownload['id'], 'completed');
@@ -92,5 +103,14 @@ class Downloader {
     }
 
     return 0.0;
+  }
+
+  static Future<void> stopDownload(int id, DatabaseHelper dbHelper) async {
+    final process = _processes[id];
+    if (process != null) {
+      process.kill(); // Kill the ffmpeg process
+      _processes.remove(id);
+      await dbHelper.updateDownloadStatus(id, 'stopped');
+    }
   }
 }
